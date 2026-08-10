@@ -1,0 +1,34 @@
+<RCC>
+    <qresource prefix="/map">
+        <file>resources/plane_small.png</file>
+        <file>resources/plane_small_2.png</file>
+    </qresource>
+    <qresource prefix="/icon">
+        <file>resources/navi16.ico</file>
+        <file>resources/navi32.ico</file>
+        <file>resources/navi48.ico</file>
+        <file>resources/navi64.ico</file>
+        <file>resources/navi128.ico</file>
+        <file>resources/navi256.ico</file>
+        <file>resources/navi.png</file>
+    </qresource>
+    <qresource prefix="/css">
+        <file>resources/qdarkstyle/dark/darkstyle.qss</file>
+        <file>resources/qdarkstyle/light/lightstyle.qss</file>
+    </qresource>
+    <qresource prefix="/toolbar">
+        <file>resources/toolbarIcon/airplane.svg</file>
+        <file>resources/toolbarIcon/link.svg</file>
+        <file>resources/toolbarIcon/night.svg</file>
+        <file>resources/toolbarIcon/rotate.svg</file>
+        <file>resources/toolbarIcon/switch_left.svg</file>
+        <file>resources/toolbarIcon/switch_right.svg</file>
+    </qresource>
+    <qresource prefix="/trans">
+        <file>translation/qt_zh_CN.qm</file>
+        <file>translation/qtbase_zh_CN.qm</file>
+    </qresource>
+    <qresource prefix="/doc">
+        <file>resources/documents/wtc.json</file>
+    </qresource>
+</RCC>

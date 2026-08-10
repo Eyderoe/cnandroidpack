@@ -1,0 +1,401 @@
+#include "main_window.hpp"
+
+#include <QFileDialog>
+#include <QMenu>
+#include <QToolBar>
+#include <QToolButton>
+
+#include "main_widget.hpp"
+#include "options_widget.hpp"
+#include "about_dialog.hpp"
+#include "ui_main_window.h"
+#include "connector/allAdapter.hpp"
+#include "ui/statusBar.hpp"
+#include "ui/themeColor.hpp"
+#include "ui/pdfView.hpp"
+#include "ui/stackedWidget.hpp"
+#include "services/settingManage.hpp"
+#include "utils/constValue.hpp"
+#include "utils/androidDebug.hpp"
+
+#if defined(__ANDROID__)
+#include <QClipboard>
+#include <QCoreApplication>
+#include <QApplication>
+#include <QJniObject>
+#endif
+
+
+main_window::main_window (QWidget *parent) : QMainWindow(parent), ui(new Ui::main_window) {
+    ui->setupUi(this);
+    // 初始化页面
+    stackedWidget = new StackedWidget(this);
+    pdfBrowser = new main_widget(this);
+    enroute = new enroute_widget(this);
+    stackedWidget->addWidget(pdfBrowser);
+    stackedWidget->addWidget(enroute);
+    setCentralWidget(stackedWidget);
+    // 模拟器数据层
+    pdfBrowser->setDataProvider(stackedWidget->dataProvider());
+    enroute->setDataProvider(stackedWidget->dataProvider());
+    // 初始化动作组
+    initActionGroup();
+    // 安卓特化 因为显示不了菜单栏
+    if constexpr (platform == MultiPlatform::androidOS) {
+        // 统一放在安卓菜单下面
+        auto *androidMenu = new QMenu(tr("安卓"), ui->menubar);
+        androidMenu->setObjectName("menu_top_5_android");
+        // Debug文本复制按钮
+        const auto *debugAction = androidMenu->addAction(tr("复制Debug文本"));
+        connect(debugAction, &QAction::triggered, this, &main_window::copyAndroidDebugText);
+        // 权限按钮: 调起系统文件夹选择器获取SAF访问权限
+        const auto *permissionAction = androidMenu->addAction(tr("获取文件夹权限(SAF)"));
+        connect(permissionAction, &QAction::triggered, this, &main_window::grantFolderPermission);
+        ui->menubar->addMenu(androidMenu);
+        menu2toolBar();
+    }
+    // 初始化状态栏
+    new StatusBar(ui->statusbar, ui->statusbar);
+    // 连接信号
+    initConnect();
+    // 更新所有设置
+    SettingsManager &ins = SettingsManager::instance();
+    ins.broadcast();
+
+    const bool isDark = QApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark; // 暗色模式以及按钮
+    ins.set(SettingsManager::isDarkTheme, isDark);
+}
+
+/**
+ * @brief 设置色彩主题
+ * @param colorScheme 色彩主题 0u 1light 2dark
+ */
+void main_window::setTheme (const Qt::ColorScheme colorScheme) {
+    if (colorScheme == Qt::ColorScheme::Dark) {
+        setDarkTheme();
+    } else {
+        setLightTheme();
+    }
+}
+
+void main_window::closeEvent (QCloseEvent *event) {
+    const auto centralWidget = dynamic_cast<QStackedWidget*>(this->centralWidget());
+    const auto pdfWidget = dynamic_cast<main_widget*>(centralWidget->widget(0));
+    pdfWidget->saveSplitter();
+    SettingsManager &manager = SettingsManager::instance();
+    manager.set(SettingsManager::MainWindowGeo, saveGeometry(), true);
+    manager.set(SettingsManager::MainWidgetSta, saveState(), true);
+
+    manager.writeSetting();
+    QMainWindow::closeEvent(event);
+}
+
+void main_window::setDataSourceGroup (int val) const {
+    switch (static_cast<SimulatorSource>(val)) {
+        case SimulatorSource::xplane:
+            ui->action_source_XPlane->setChecked(true);
+            break;
+        case SimulatorSource::wlan:
+            ui->action_source_wlan->setChecked(true);
+            break;
+        case SimulatorSource::real:
+            ui->action_source_real->setChecked(true);
+            break;
+        case SimulatorSource::replay:
+            break;
+        default:
+            assert(false && "need to update switch case. [main_window::setDataSource]");
+    }
+}
+
+void main_window::setTcasRangeGroup (int val) const {
+    switch (static_cast<TcasMode>(val)) {
+        case TcasMode::nm30:
+            ui->action_tcas_nm30->setChecked(true);
+            break;
+        case TcasMode::nm6:
+            ui->action_tcas_nm6->setChecked(true);
+            break;
+        case TcasMode::none:
+            ui->action_tcas_none->setChecked(true);
+            break;
+        case TcasMode::all:
+            ui->action_tcas_all->setChecked(true);
+            break;
+        default:
+            assert(false && "need to update switch case. [main_window::setTcasRange]");
+    }
+}
+
+void main_window::setInfoModeGroup (int val) const {
+    switch (static_cast<InfoMode>(val)) {
+        case InfoMode::base:
+            ui->action_symbol_base->setChecked(true);
+            break;
+        case InfoMode::extend:
+            ui->action_symbol_extend->setChecked(true);
+            break;
+        case InfoMode::full:
+            ui->action_symbol_full->setChecked(true);
+            break;
+        default:
+            assert(false && "need to update switch case. [main_window::setInfoModeGroup]");
+    }
+}
+
+void main_window::initConnect () {
+    auto &setting = SettingsManager::instance();
+    // 存储设置
+    connect(&setting, qOverload<SettingsManager::ConstKey, const QVariant&>(&SettingsManager::settingChanged), this,
+            [this](const SettingsManager::ConstKey key, const QVariant &val) {
+                switch (key) {
+                    case SettingsManager::MainWindowGeo:
+                        restoreGeometry(val.toByteArray());
+                        break;
+                    case SettingsManager::MainWidgetSta:
+                        restoreState(val.toByteArray());
+                        break;
+                    case SettingsManager::dataSource:
+                        setDataSourceGroup(val.toInt());
+                        break;
+                    case SettingsManager::tcasRange:
+                        setTcasRangeGroup(val.toInt());
+                        break;
+                    case SettingsManager::infoMode:
+                        setInfoModeGroup(val.toInt());
+                        break;
+                    case SettingsManager::planeFollowed:
+                        ui->action_follow->setChecked(val.toBool());
+                        break;
+                    case SettingsManager::stayFront:
+                        if (val.toBool())
+                            setWindowFlags(windowFlags() | Qt::WindowStaysOnTopHint);
+                        else
+                            setWindowFlags(windowFlags() & ~Qt::WindowStaysOnTopHint);
+                        ui->action_top->setChecked(val.toBool());
+                        show();
+                        break;
+                    case SettingsManager::scaleBarEnable:
+                        ui->action_scale->setChecked(val.toBool());
+                        break;
+                    case SettingsManager::showThumb:
+                        ui->action_show_thumb->setChecked(val.toBool());
+                        break;
+                    case SettingsManager::showTrail:
+                        ui->action_show_trail->setChecked(val.toBool());
+                        break;
+                    case SettingsManager::useCalGeoHeading:
+                        ui->action_cal_geo->setChecked(val.toBool());
+                    default:
+                        break;
+                }
+            });
+    // 临时设置
+    connect(&setting, qOverload<SettingsManager::TempKey, const QVariant&>(&SettingsManager::settingChanged), this,
+            [this](const SettingsManager::TempKey key, const QVariant &val) {
+                switch (key) {
+                    case SettingsManager::isDarkTheme: {
+                        const auto isDark = val.toBool();
+                        setTheme(isDark ? Qt::ColorScheme::Dark : Qt::ColorScheme::Light);
+                        ui->action_dark->setChecked(isDark);
+                        break;
+                    }
+                    default:
+                        break;
+                }
+            });
+    // QMainWindow动作
+    connect(ui->action_dark, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::isDarkTheme, checked);
+    });
+    connect(ui->action_show_thumb, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::showThumb, checked);
+    });
+    connect(ui->action_scale, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::scaleBarEnable, checked);
+    });
+    connect(ui->action_top, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::stayFront, checked);
+    });
+    connect(ui->action_follow, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::planeFollowed, checked);
+    });
+    connect(ui->action_cal_geo, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::useCalGeoHeading, checked);
+    });
+    connect(ui->action_show_trail, &QAction::triggered, this, [&](const bool checked) {
+        SettingsManager::instance().set(SettingsManager::showTrail, checked);
+    });
+
+    connect(ui->action_thank, &QAction::triggered, this, [&] () {
+        const auto dialog = new about_dialog(this);
+        dialog->show();
+    });
+    connect(ui->action_setting, &QAction::triggered, this, [&] () {
+        const auto options = new options_widget(this);
+        options->setWindowFlags(Qt::Window);
+        options->show();
+        options->setAttribute(Qt::WA_DeleteOnClose);
+    });
+    connect(ui->action_load_file, &QAction::triggered, this, &main_window::openFile);
+    connect(ui->action_load_folder, &QAction::triggered, this, &main_window::openFolder);
+    connect(ui->action_switch, &QAction::triggered, this,
+            [this] () { stackedWidget->setCurrentIndex(mainPage.next()); });
+    connect(ui->action_rotate, &QAction::triggered, this,
+            [&] () { setting.set(SettingsManager::pageRotate, pageRotateDegree.next()); });
+
+    connect(sourceGroup, &QActionGroup::triggered, this, [&](const QAction *action) {
+        if (action == ui->action_source_XPlane)
+            SettingsManager::instance().set(SettingsManager::dataSource, static_cast<int>(SimulatorSource::xplane));
+        else if (action == ui->action_source_wlan)
+            SettingsManager::instance().set(SettingsManager::dataSource, static_cast<int>(SimulatorSource::wlan));
+        else if (action == ui->action_source_real)
+            SettingsManager::instance().set(SettingsManager::dataSource, static_cast<int>(SimulatorSource::real));
+        else
+            assert(false && "need to update if else. [main_window::initConnect]");
+    });
+    connect(tcasGroup, &QActionGroup::triggered, this, [&](const QAction *action) {
+        if (action == ui->action_tcas_all)
+            SettingsManager::instance().set(SettingsManager::tcasRange, static_cast<int>(TcasMode::all));
+        else if (action == ui->action_tcas_none)
+            SettingsManager::instance().set(SettingsManager::tcasRange, static_cast<int>(TcasMode::none));
+        else if (action == ui->action_tcas_nm30)
+            SettingsManager::instance().set(SettingsManager::tcasRange, static_cast<int>(TcasMode::nm30));
+        else if (action == ui->action_tcas_nm6)
+            SettingsManager::instance().set(SettingsManager::tcasRange, static_cast<int>(TcasMode::nm6));
+        else
+            assert(false && "need to update if else. [main_window::initConnect]");
+    });
+    connect(infoGroup, &QActionGroup::triggered, this, [&](const QAction *action) {
+        if (action == ui->action_symbol_base)
+            SettingsManager::instance().set(SettingsManager::infoMode, static_cast<int>(InfoMode::base));
+        else if (action == ui->action_symbol_extend)
+            SettingsManager::instance().set(SettingsManager::infoMode, static_cast<int>(InfoMode::extend));
+        else if (action == ui->action_symbol_full)
+            SettingsManager::instance().set(SettingsManager::infoMode, static_cast<int>(InfoMode::full));
+        else
+            assert(false && "need to update if else. [main_window::initConnect]");
+    });
+}
+
+/**
+ * @brief 创建一个动作组
+ * @param widget 窗口
+ * @param contain 动作包含的名字
+ * @return 动作组指针
+ */
+QActionGroup* makeGroup (QWidget *widget, const QString &contain) {
+    const auto group = new QActionGroup(widget);
+    group->setExclusive(true);
+    for (QAction *action : widget->findChildren<QAction*>()) {
+        if (action->objectName().contains(contain))
+            group->addAction(action);
+    }
+    return group;
+}
+
+void main_window::initActionGroup () {
+    sourceGroup = makeGroup(this, "_source_");
+    tcasGroup = makeGroup(this, "_tcas_");
+    infoGroup = makeGroup(this, "_symbol_");
+}
+
+/**
+ * @brief 把菜单栏转换为工具栏
+ */
+void main_window::menu2toolBar () {
+    auto *bar = ui->toolBar;
+    bar->addSeparator();
+    const auto addTopMenu = [bar](QMenu *menu) {
+        auto *btn = new QToolButton(bar);
+        btn->setText(menu->title());
+        btn->setMenu(menu);
+        btn->setPopupMode(QToolButton::InstantPopup);
+        btn->setToolButtonStyle(Qt::ToolButtonTextOnly);
+        btn->setFocusPolicy(Qt::NoFocus);
+        bar->addWidget(btn);
+    };
+    auto menus = ui->menubar->findChildren<QMenu*>(QRegularExpression("^menu_top_*"));
+    std::ranges::sort(menus, std::ranges::less{}, &QMenu::objectName);
+    for (const auto menu : menus)
+        addTopMenu(menu);
+    ui->menubar->hide();
+}
+
+void main_window::on_action_dark_triggered (const bool checked) {
+    SettingsManager::instance().set(SettingsManager::isDarkTheme, checked);
+}
+
+void main_window::openFile () {
+    // 文件选择框的一坨
+    auto option = QFileDialog::Options();
+    if ((platform == MultiPlatform::macOS) && !inMacSandbox)
+        option |= QFileDialog::DontUseNativeDialog;
+    const QString fileName = QFileDialog::getOpenFileName(this, "选择文件", QDir::homePath()
+                                                          , "文件 (*.pdf)", nullptr, option);
+    if (fileName.isEmpty())
+        return;
+    // 读取文件
+    pdfBrowser->loadPdfFile(fileName);
+}
+
+void main_window::openFolder () {
+    // 文件选择框的一坨
+    auto option = QFileDialog::Options();
+    if ((platform == MultiPlatform::macOS) && !inMacSandbox)
+        option |= QFileDialog::DontUseNativeDialog;
+    option = option | QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks;
+    const QString dir = QFileDialog::getExistingDirectory(this, "选择文件夹", QDir::homePath()
+                                                          , option);
+    if (dir.isEmpty())
+        return;
+    // 读取文件夹
+    pdfBrowser->loadFolder(dir);
+}
+
+/**
+ * @brief 持久化SAF目录授权
+ * @param uri 系统文件夹选择器返回的 content:// tree URI
+ * @note 不持久化的话, 设备重启后授权会丢失, 文件树又只能看到目录
+ */
+static void persistAndroidTreeUri (const QString &uri) {
+#if defined(__ANDROID__)
+    if (!uri.startsWith("content://"))
+        return;
+    // android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION | FLAG_GRANT_WRITE_URI_PERMISSION
+    constexpr jint readWriteFlags = 0x1 | 0x2;
+    QJniObject androidUri = QJniObject::callStaticObjectMethod(
+        "android/net/Uri", "parse", "(Ljava/lang/String;)Landroid/net/Uri;",
+        QJniObject::fromString(uri).object());
+    // Qt 6.8+/6.9 的 context() 返回类型化 QtJniTypes::Context(JObject<ContextTag>),
+    // 可隐式转成 QJniObject, 再走经典 API 调 ContentResolver
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    QJniObject resolver = context.callObjectMethod("getContentResolver",
+                                                   "()Landroid/content/ContentResolver;");
+    resolver.callMethod<void>("takePersistableUriPermission",
+                              "(Landroid/net/Uri;I)V", androidUri.object(), readWriteFlags);
+#endif
+}
+
+/**
+ * @brief 获取文件夹访问权限(仅安卓)
+ * @note 调起系统文件夹选择器(SAF), 持久化授权后把 content:// 路径复制到剪贴板
+ */
+void main_window::grantFolderPermission () {
+    auto option = QFileDialog::Options();
+    option |= QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks;
+    const QString dir = QFileDialog::getExistingDirectory(this, tr("选择文件夹以获取访问权限"),
+                                                          QDir::homePath(), option);
+    if (dir.isEmpty())
+        return;
+    persistAndroidTreeUri(dir); // 持久化授权, 避免设备重启后授权丢失
+    QApplication::clipboard()->setText(dir);
+}
+
+/**
+ * @brief 复制Debug文本到剪贴板(仅安卓)
+ * @note androidDebugText 定义于 utils/androidDebug.hpp, 保存调试过程中累积的文本
+ */
+void main_window::copyAndroidDebugText () {
+    QApplication::clipboard()->setText(androidDebugText);
+}

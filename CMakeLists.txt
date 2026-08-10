@@ -1,0 +1,212 @@
+cmake_minimum_required(VERSION 3.28)
+project(ChartNavigation)
+
+#-DCMAKE_PREFIX_PATH="D:/Qt/Qt6/6.9.3/mingw_64"
+#-DCMAKE_PREFIX_PATH="/Users/eyderoe/Qt/6.9.3/macos/lib/cmake"
+if (MINGW AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13.0 OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14.0))
+    message(FATAL_ERROR "MinGW-w64 version must be 13.x, got ${CMAKE_CXX_COMPILER_VERSION}")
+endif ()
+if (ANDROID)
+    set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE BOTH)
+    set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY BOTH)
+endif ()
+
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
+
+find_package(Boost CONFIG)
+find_package(GeographicLib REQUIRED)
+if (NOT TARGET GeographicLib::GeographicLib AND GeographicLib_LIBRARIES)
+    add_library(GeographicLib::GeographicLib UNKNOWN IMPORTED)
+    set_target_properties(GeographicLib::GeographicLib PROPERTIES
+            IMPORTED_LOCATION "${GeographicLib_LIBRARIES}"
+            INTERFACE_INCLUDE_DIRECTORIES "${GeographicLib_INCLUDE_DIRS}"
+    )
+endif ()
+find_package(QCoro6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS
+        Core
+        Gui
+        Widgets
+        PdfWidgets
+        Pdf
+        Concurrent
+        Positioning
+        Protobuf
+        ProtobufTools)
+
+
+qt_add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE
+        resources.qrc
+        resources/qdarkstyle/dark/darkstyle.qrc
+        resources/qdarkstyle/light/lightstyle.qrc
+        src/main.cpp
+        src/gui/main_widget.cpp
+        src/gui/main_widget.hpp
+        src/gui/main_widget.ui
+        src/utils/affineTransformer.cpp
+        src/utils/affineTransformer.hpp
+        src/ui/pdfView.cpp
+        src/ui/pdfView.hpp
+        src/ui/stackedWidget.cpp
+        src/ui/stackedWidget.hpp
+        src/ui/themeColor.cpp
+        src/ui/themeColor.hpp
+        src/utils/stringProcess.cpp
+        src/utils/stringProcess.hpp
+        src/gui/options_widget.cpp
+        src/gui/options_widget.hpp
+        src/gui/options_widget.ui
+        src/ui/enhancedTree.cpp
+        src/ui/enhancedTree.hpp
+        src/utils/randomGen.cpp
+        src/utils/randomGen.hpp
+        src/utils/constValue.hpp
+        src/utils/geographic.cpp
+        src/utils/geographic.hpp
+        src/connector/interface.hpp
+        src/connector/xpStd.cpp
+        src/connector/xpStd.hpp
+        src/connector/wlan.cpp
+        src/connector/wlan.hpp
+        src/connector/msfs.cpp
+        src/connector/msfs.hpp
+        src/connector/allAdapter.hpp
+        src/gui/main_window.hpp
+        src/gui/main_window.cpp
+        src/gui/main_window.ui
+        src/connector/plane.proto
+        src/services/settingManage.cpp
+        src/services/settingManage.hpp
+        src/connector/real.cpp
+        src/connector/real.hpp
+        src/gui/about_dialog.cpp
+        src/gui/about_dialog.hpp
+        src/gui/about_dialog.ui
+        src/ui/statusBar.cpp
+        src/ui/statusBar.hpp
+        src/gui/enroute_widget.cpp
+        src/gui/enroute_widget.hpp
+        src/gui/enroute_widget.ui
+        src/utils/noaaGlobe.cpp
+        src/utils/noaaGlobe.hpp
+        src/services/dataProvider.cpp
+        src/services/dataProvider.hpp
+        src/reserveCode/observe.hpp
+        src/reserveCode/typeErasure.hpp
+        src/utils/eventManage.hpp
+        src/utils/eventManage.cpp
+        src/gui/replay_control.cpp
+        src/gui/replay_control.hpp
+        src/gui/replay_control.ui
+        src/connector/replay.cpp
+        src/connector/replay.hpp
+        src/utils/androidDebug.hpp
+)
+qt_add_protobuf(${PROJECT_NAME}
+        PROTO_FILES
+        src/connector/plane.proto
+)
+
+
+set(CMAKE_PCH_INSTANTIATE_TEMPLATES ON)
+target_precompile_headers(${PROJECT_NAME} PRIVATE
+        <QtCore>
+        <QtGui>
+        <QtWidgets>
+        <QtPdf/QtPdf>
+        <QtPdfWidgets/QPdfView>
+)
+target_link_libraries(${PROJECT_NAME} PRIVATE
+        GeographicLib::GeographicLib
+        Qt::Core
+        Qt::Gui
+        Qt::Widgets
+        Qt::PdfWidgets
+        Qt::Pdf
+        Qt::Concurrent
+        Qt::Positioning
+        Qt::Protobuf
+        QCoro6::Core
+)
+if (WIN32)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
+    target_link_options(${PROJECT_NAME} PRIVATE
+            $<$<CONFIG:Debug>:-mconsole>
+            $<$<CONFIG:RelWithDebInfo>:-mconsole>
+            $<$<CONFIG:Release>:-mwindows>
+    )
+endif ()
+target_link_libraries(${PROJECT_NAME} PRIVATE ${Boost_SYSTEM_LIBRARY})
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
+)
+target_include_directories(${PROJECT_NAME} PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}_autogen/include
+)
+target_include_directories(${PROJECT_NAME} PRIVATE ${Boost_INCLUDE_DIRS})
+
+
+if (WIN32 AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(DEBUG_SUFFIX)
+    if (MSVC AND CMAKE_BUILD_TYPE MATCHES "Debug")
+        set(DEBUG_SUFFIX "d")
+    endif ()
+    set(QT_INSTALL_PATH "${CMAKE_PREFIX_PATH}")
+    if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
+        set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
+        if (NOT EXISTS "${QT_INSTALL_PATH}/bin")
+            set(QT_INSTALL_PATH "${QT_INSTALL_PATH}/..")
+        endif ()
+    endif ()
+    if (EXISTS "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                "${QT_INSTALL_PATH}/plugins/platforms/qwindows${DEBUG_SUFFIX}.dll"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/plugins/platforms/")
+    endif ()
+    foreach (QT_LIB Core Gui Widgets)
+        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy
+                "${QT_INSTALL_PATH}/bin/Qt6${QT_LIB}${DEBUG_SUFFIX}.dll"
+                "$<TARGET_FILE_DIR:${PROJECT_NAME}>")
+    endforeach (QT_LIB)
+endif ()
+if (APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version to target for deployment" FORCE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_DEVELOPMENT_REGION "zh_CN"
+            MACOSX_BUNDLE_INFO_PLIST_LOCALIZATIONS "zh_CN"
+            MACOSX_BUNDLE_BUNDLE_NAME "ChartNavigation"
+            MACOSX_BUNDLE_EXECUTABLE_NAME "ChartNavigation"
+            MACOSX_BUNDLE_ICON_FILE "navi.icns"
+    )
+    set(APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/resources/navi.icns")
+    if (EXISTS "${APP_ICON}")
+        set_source_files_properties("${APP_ICON}" PROPERTIES
+                MACOSX_PACKAGE_LOCATION "Resources"
+        )
+        target_sources(${PROJECT_NAME} PRIVATE "${APP_ICON}")
+    endif ()
+endif ()
+if (ANDROID)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+            QT_ANDROID_PACKAGE_NAME "eyderoe.ChartNavigation"
+            QT_ANDROID_APP_NAME "ChartNavigation"
+            QT_ANDROID_APP_ICON "@drawable/ic_launcher"
+            QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
+    )
+endif ()
+
+add_subdirectory(test)
