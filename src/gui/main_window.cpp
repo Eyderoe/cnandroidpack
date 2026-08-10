@@ -52,6 +52,10 @@ main_window::main_window (QWidget *parent) : QMainWindow(parent), ui(new Ui::mai
         const auto *permissionAction = androidMenu->addAction(tr("获取文件夹权限(SAF)"));
         connect(permissionAction, &QAction::triggered, this, &main_window::grantFolderPermission);
         ui->menubar->addMenu(androidMenu);
+        // 权限按钮: 跳转到 设置 → 特殊应用权限 → 所有文件访问
+        const auto *allFilesAction = androidMenu->addAction(tr("所有文件访问权限"));
+        connect(allFilesAction, &QAction::triggered, this, &main_window::grantAllFilesPermission);
+        
         menu2toolBar();
     }
     // 初始化状态栏
@@ -390,6 +394,31 @@ void main_window::grantFolderPermission () {
         return;
     persistAndroidTreeUri(dir); // 持久化授权, 避免设备重启后授权丢失
     QApplication::clipboard()->setText(dir);
+}
+
+/**
+ * @brief 跳转系统设置, 授权"所有文件访问"(MANAGE_EXTERNAL_STORAGE, 仅安卓)
+ * @note 安卓 11 (API 30) 以上才有此设置页; 授权后裸路径(/storage/emulated/0/...)才可读
+ */
+void main_window::grantAllFilesPermission () {
+#if defined(__ANDROID__)
+    // 安卓 11 (API 30) 以下没有该权限
+    if (QJniObject::getStaticField<jint>("android/os/Build$VERSION", "SDK_INT") < 30)
+        return;
+    QJniObject context = QNativeInterface::QAndroidApplication::context();
+    // Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+    QJniObject intent("android/content/Intent", "(Ljava/lang/String;)V",
+                      QJniObject::fromString("android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION").object());
+    // intent.setData(Uri.parse("package:" + getPackageName()))
+    QJniObject packageName = context.callObjectMethod("getPackageName", "()Ljava/lang/String;");
+    QJniObject uri = QJniObject::callStaticObjectMethod(
+        "android/net/Uri", "parse", "(Ljava/lang/String;)Landroid/net/Uri;",
+        QJniObject::fromString("package:" + packageName.toString()).object());
+    intent.callObjectMethod("setData", "(Landroid/net/Uri;)Landroid/content/Intent;", uri.object());
+    // Intent.FLAG_ACTIVITY_NEW_TASK
+    intent.callObjectMethod("addFlags", "(I)Landroid/content/Intent;", 0x10000000);
+    context.callObjectMethod("startActivity", "(Landroid/content/Intent;)V", intent.object());
+#endif
 }
 
 /**

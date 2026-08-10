@@ -43,6 +43,7 @@ class main_window : public QMainWindow {
         void openFile ();
         void openFolder ();
         void grantFolderPermission ();
+        void grantAllFilesPermission ();
         void copyAndroidDebugText ();
 };
 
