@@ -6,6 +6,10 @@
 #include "ui/themeColor.hpp"
 #include "services/settingManage.hpp"
 #include "services/dataProvider.hpp"
+#include "utils/android.hpp"
+#include "utils/constValue.hpp"
+
+#include <QStandardPaths>
 
 
 /**
@@ -16,6 +20,12 @@ void main_widget::initFileTree () const {
     // 文件夹选择框
     const QString chartText = SettingsManager::instance().get(SettingsManager::chartFolder, "").toString();
     for (auto chartFolders = chartText.split('*'); const auto &folder : chartFolders) {
+        if constexpr (platform == MultiPlatform::androidOS) {
+            if (isSafTreeUri(folder)) { // SAF 目录树 URI, QDir 不认 content://
+                ui->folder_comboBox->addItem("SAF文件夹", folder);
+                continue;
+            }
+        }
         QDir chartDir(folder);
         if (!chartDir.exists())
             continue;
@@ -89,13 +99,17 @@ void main_widget::loadPdfFile (const QString &filePath) {
     auto pdfPath = filePath;
     if (pdfPath.startsWith("\"") && pdfPath.endsWith("\"") && (pdfPath.size() >= 2))
         pdfPath = pdfPath.mid(1, pdfPath.length() - 2);
-    if (!pdfPath.endsWith(".pdf", Qt::CaseInsensitive))
+    if (!pdfPath.endsWith(".pdf", Qt::CaseInsensitive) && !pdfPath.startsWith("content://"))
         return;
     if (const QFile file(pdfPath); !file.exists())
         return;
-    pdfFilePath = pdfPath;
+    // 安卓SAF: 先拷贝到应用缓存再加载, 之后页面渲染不再反复走 ContentResolver
+    const QString localPath = safCachePdf(pdfPath);
+    if (localPath.isEmpty())
+        return;
+    pdfFilePath = localPath;
     ui->pageNum_spinBox->setEnabled(true);
-    document->load(pdfPath);
+    document->load(localPath);
     loadPdfFileMapping();
     on_pageNum_spinBox_valueChanged(0);
 }

@@ -3,6 +3,8 @@
 #include <rapidhash.h>
 
 #include "enhancedTree.hpp"
+
+#include "utils/android.hpp"
 #include "utils/constValue.hpp"
 
 
@@ -32,6 +34,10 @@ uint64_t Node::getHash () {
     if (hash)
         return hash;
     // 否则开始计算
+    if constexpr (platform == MultiPlatform::androidOS) {
+        if (!androidMasterAccess)
+            return rapidhash(baseDir.constData(), baseDir.size() * sizeof(QChar));
+    }
     QFile file(baseDir);
     if (!file.open(QIODevice::ReadOnly))
         return 0;
@@ -113,7 +119,15 @@ void Tree::loadFolder (const QString &folder) {
     visibleNodes.clear();
     clear();
     // 运行
-    const int count = traverseRead(folder, this);
+    int count = 0;
+    if constexpr (platform == MultiPlatform::androidOS) {
+        if (isSafTreeUri(folder))
+            count = safTraverseRead(folder, {}, this);
+        else
+            count = traverseRead(folder, this);
+    } else {
+        count = traverseRead(folder, this);
+    }
     visibleNodes.reserve(count);
     // 后置操作
     for (int i = 0; i < topLevelItemCount(); ++i) {
@@ -156,13 +170,17 @@ void Tree::collapse (const QTreeWidgetItem *item) {
 /**
  * @brief 异步加载文件的缩略图
  * @param item 节点
- * @note 只要进入这个函数,缩略图就一定会生成
+ * @note 只要进入这个函数,缩略图就一定会生成.然后每次展开目录都会进来一次
  */
 QCoro::Task<> Tree::loadThumb (Node *item) const {
     auto renderTask = [](const QString &pdfPath, const QString &thumbPath) -> QImage {
+        // SAF 的 content:// 先落到本地缓存再渲染, 避免 QPdfDocument 反复跨进程读文件
+        const QString localPath = safCachePdf(pdfPath);
+        if (localPath.isEmpty())
+            return {};
         // 渲染图片
         QPdfDocument doc;
-        doc.load(pdfPath);
+        doc.load(localPath);
         const QSizeF pageSize = doc.pagePointSize(0);
         const bool portrait = pageSize.height() > pageSize.width();
         const QSize size = portrait ? QSize{288, 384} : QSize{288, 256};
@@ -188,8 +206,13 @@ QCoro::Task<> Tree::loadThumb (Node *item) const {
     };
 
     // 没有选择加载缩略图 先删除缩略图
-    if (!showThumbPic)
+    if (!showThumbPic) {
         item->setIcon(0, {});
+        if constexpr (platform == MultiPlatform::androidOS) {
+            if (androidMasterAccess)
+                co_return ;
+        }
+    }
     // 检查目录下有没有
     std::string hash;
     if (item->hash)
