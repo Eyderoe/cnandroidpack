@@ -28,7 +28,7 @@ void grantAllFilesPermission () {
     intent.callObjectMethod("setData", "(Landroid/net/Uri;)Landroid/content/Intent;", uri.object());
     // Intent.FLAG_ACTIVITY_NEW_TASK
     intent.callObjectMethod("addFlags", "(I)Landroid/content/Intent;", 0x10000000);
-    context.callObjectMethod("startActivity", "(Landroid/content/Intent;)V", intent.object());
+    context.callMethod<void>("startActivity", "(Landroid/content/Intent;)V", intent.object());
 #endif
 }
 
@@ -62,12 +62,12 @@ void persistAndroidTreeUri (const QString &uri) {
  */
 bool hasManageExternalStorage () {
 #if defined(__ANDROID__)
-    QJniObject result = QJniObject::callStaticObjectMethod(
+    // isExternalStorageManager 返回 boolean, 必须用类型化 callStaticMethod<jboolean>,
+    // callStaticObjectMethod 只能调返回对象的 Java 方法, 否则 ART 会直接 abort
+    return QJniObject::callStaticMethod<jboolean>(
         "android/os/Environment",
-        "isExternalStorageManager",
-        "()Z"
+        "isExternalStorageManager"
     );
-    return result.toString() == "true";
 #endif
     return false;
 }

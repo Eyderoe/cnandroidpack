@@ -35,7 +35,7 @@ uint64_t Node::getHash () {
         return hash;
     // 否则开始计算
     if constexpr (platform == MultiPlatform::androidOS) {
-        if (!androidMasterAccess) {
+        if (!androidMasterAccess()) {
             QString temp = QDateTime::currentDateTime().toString("MMdd") + baseDir;
             return rapidhash(temp.constData(), temp.size() * sizeof(QChar));
         }
@@ -200,7 +200,7 @@ QCoro::Task<> Tree::loadThumb (Node *item) const {
     if (!showThumbPic) {
         item->setIcon(0, {});
         if constexpr (platform == MultiPlatform::androidOS) {
-            if (androidMasterAccess)
+            if (androidMasterAccess())
                 co_return ;
         }
     }

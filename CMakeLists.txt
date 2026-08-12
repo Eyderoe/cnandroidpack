@@ -139,6 +139,14 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         QCoro6::Core
 )
 if (WIN32)
+    set(APP_ICON "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.ico")
+    configure_file(
+            "${CMAKE_CURRENT_SOURCE_DIR}/windows/app.rc.in"
+            "${CMAKE_CURRENT_BINARY_DIR}/app.rc"
+            @ONLY
+    )
+    target_sources(${PROJECT_NAME} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+
     target_link_libraries(${PROJECT_NAME} PRIVATE ws2_32)
     target_link_options(${PROJECT_NAME} PRIVATE
             $<$<CONFIG:Debug>:-mconsole>
