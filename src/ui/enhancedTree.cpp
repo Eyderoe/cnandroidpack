@@ -35,8 +35,10 @@ uint64_t Node::getHash () {
         return hash;
     // 否则开始计算
     if constexpr (platform == MultiPlatform::androidOS) {
-        if (!androidMasterAccess)
-            return rapidhash(baseDir.constData(), baseDir.size() * sizeof(QChar));
+        if (!androidMasterAccess) {
+            QString temp = QDateTime::currentDateTime().toString("MMdd") + baseDir;
+            return rapidhash(temp.constData(), temp.size() * sizeof(QChar));
+        }
     }
     QFile file(baseDir);
     if (!file.open(QIODevice::ReadOnly))
@@ -62,11 +64,12 @@ void Node::switchColor () {
 Tree::Tree (QWidget *parent) : QTreeWidget(parent) {
     const SettingsManager &ins = SettingsManager::instance();
     // 缓存目录
+    constexpr int cacheFileMax = (platform == MultiPlatform::androidOS) ? 20 : 1000;
     cacheDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
     qDebug() << "Cache path: " << cacheDir.path();
     if (!cacheDir.exists() && !cacheDir.mkpath(".")) {
         qDebug() << "缓存目录创建失败";
-    } else if (cacheDir.count() > 1000) {
+    } else if (cacheDir.count() > cacheFileMax) {
         shouldClean = true;
     }
     // 连接
