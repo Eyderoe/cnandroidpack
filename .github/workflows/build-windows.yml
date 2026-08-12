@@ -75,7 +75,14 @@ jobs:
           Write-Host "Detected MinGW version: $mingwVersion"
 
       - name: Install protoc
-        run: choco install protoc -y --no-progress
+        run: |
+          choco install protoc -y --no-progress
+          "C:\ProgramData\chocolatey\bin" | Add-Content -Path $env:GITHUB_PATH
+          $env:PATH = "C:\ProgramData\chocolatey\bin;$env:PATH"
+          if (-not (Get-Command protoc -ErrorAction SilentlyContinue)) {
+            throw "protoc was not installed by choco"
+          }
+          protoc --version
 
       - name: Cache vcpkg
         uses: actions/cache@v5
@@ -106,7 +113,7 @@ jobs:
         run: |
           & $env:VCPKG_ROOT/vcpkg.exe install `
             boost-system boost-asio boost-dynamic-bitset boost-pool `
-            geographiclib protobuf `
+            geographiclib `
             --triplet x64-mingw-dynamic
 
       - name: Build qcoro from source (against aqt Qt6, avoids vcpkg qtbase conflict)
