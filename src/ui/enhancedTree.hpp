@@ -17,9 +17,6 @@ concept NodeT = std::is_base_of_v<QTreeWidgetItem, T> || std::is_base_of_v<QTree
 template <NodeT Parent>
 int traverseRead (const QDir &folder, Parent *parentNode, int depth = 0);
 
-template <NodeT Parent>
-int safTraverseRead (const QString &treeUri, const QString &parentDocumentId, Parent *parentNode, int depth = 0);
-
 
 class Node final : public QTreeWidgetItem {
     public:
@@ -97,46 +94,6 @@ int traverseRead (const QDir &folder, Parent *parentNode, const int depth) {
     for (const auto node : nodes) {
         if (node->isFolder)
             pdfFileCount += traverseRead(node->baseDir, node, depth + 1);
-    }
-    return pdfFileCount;
-}
-
-/**
- * @brief 递归新建 SAF 树节点 (content:// tree URI 版 traverseRead)
- * @param treeUri SAF 目录树 URI
- * @param parentDocumentId 父节点 document id/URI (根传空)
- */
-template <NodeT Parent>
-int safTraverseRead (const QString &treeUri, const QString &parentDocumentId, Parent *parentNode, const int depth) {
-    static SettingsManager &ins = SettingsManager::instance();
-    static const bool onlyPdf = ins.get(SettingsManager::onlyDisplayPdf, true).toBool();
-    if (depth > 4)
-        return 0;
-    int pdfFileCount = 0;
-    const auto children = safListChildren(treeUri, parentDocumentId);
-    std::vector<Node*> nodes;
-    for (const auto &child : children) {
-        if (!child.isFolder) {
-            if (onlyPdf && (!child.isPdf))
-                continue;
-            if (child.isPdf)
-                pdfFileCount++;
-        }
-        nodes.emplace_back(new Node(child.uri, child.name, child.isFolder));
-    }
-    // 添加
-    if (nodes.empty())
-        nodes.emplace_back(new Node({}, {"[Empty!]"}, false));
-    for (const auto node : nodes) {
-        if constexpr (requires { parentNode->addTopLevelItem(node); })
-            parentNode->addTopLevelItem(node);
-        else
-            parentNode->addChild(node);
-    }
-    // 遍历
-    for (const auto node : nodes) {
-        if (node->isFolder)
-            pdfFileCount += safTraverseRead(treeUri, node->baseDir, node, depth + 1);
     }
     return pdfFileCount;
 }

@@ -119,15 +119,7 @@ void Tree::loadFolder (const QString &folder) {
     visibleNodes.clear();
     clear();
     // 运行
-    int count = 0;
-    if constexpr (platform == MultiPlatform::androidOS) {
-        if (isSafTreeUri(folder))
-            count = safTraverseRead(folder, {}, this);
-        else
-            count = traverseRead(folder, this);
-    } else {
-        count = traverseRead(folder, this);
-    }
+    const int count = traverseRead(folder, this);
     visibleNodes.reserve(count);
     // 后置操作
     for (int i = 0; i < topLevelItemCount(); ++i) {
@@ -174,13 +166,9 @@ void Tree::collapse (const QTreeWidgetItem *item) {
  */
 QCoro::Task<> Tree::loadThumb (Node *item) const {
     auto renderTask = [](const QString &pdfPath, const QString &thumbPath) -> QImage {
-        // SAF 的 content:// 先落到本地缓存再渲染, 避免 QPdfDocument 反复跨进程读文件
-        const QString localPath = safCachePdf(pdfPath);
-        if (localPath.isEmpty())
-            return {};
         // 渲染图片
         QPdfDocument doc;
-        doc.load(localPath);
+        doc.load(pdfPath);
         const QSizeF pageSize = doc.pagePointSize(0);
         const bool portrait = pageSize.height() > pageSize.width();
         const QSize size = portrait ? QSize{288, 384} : QSize{288, 256};

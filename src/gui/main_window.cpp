@@ -45,14 +45,7 @@ main_window::main_window (QWidget *parent) : QMainWindow(parent), ui(new Ui::mai
         connect(debugAction, &QAction::triggered, this, &copyAndroidDebugText);
         // 权限按钮: 调起系统文件夹选择器获取SAF访问权限
         const auto *permissionAction = androidMenu->addAction("获取文件夹权限(SAF)");
-        connect(permissionAction, &QAction::triggered, this, [this] {
-            const QString uri = grantFolderPermission();
-            if (uri.isEmpty())
-                return;
-            // 记住该文件夹并立即加载 (安卓为 content:// tree URI)
-            SettingsManager::instance().set(SettingsManager::chartFolder, uri, true);
-            pdfBrowser->loadFolder(uri);
-        });
+        connect(permissionAction, &QAction::triggered, this, &grantFolderPermission);
         ui->menubar->addMenu(androidMenu);
         // 权限按钮: 跳转到 设置 → 特殊应用权限 → 所有文件访问
         const auto *allFilesAction = androidMenu->addAction("所有文件访问权限");

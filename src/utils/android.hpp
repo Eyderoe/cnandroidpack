@@ -2,8 +2,6 @@
 #define CHARTNAVIGATION_ANDROID_HPP
 
 #include <QDebug>
-#include <QString>
-#include <QVector>
 
 
 template <typename... Args>
@@ -12,20 +10,8 @@ QString debugAllToString (Args &&... args);
 void grantAllFilesPermission ();
 void persistAndroidTreeUri (const QString &uri);
 void copyAndroidDebugText ();
-QString grantFolderPermission ();
+void grantFolderPermission ();
 bool hasManageExternalStorage ();
-
-struct SafChild {
-    QString uri;        // content://.../document/<documentId>
-    QString documentId; // 未编码的 document id
-    QString name;       // 显示名
-    bool isFolder{};
-    bool isPdf{};
-};
-
-bool isSafTreeUri (const QString &uri);
-QVector<SafChild> safListChildren (const QString &treeUri, const QString &parentDocumentId = {});
-QString safCachePdf (const QString &filePath, const QString &cacheDir = {});
 
 
 inline QString androidDebugText;
