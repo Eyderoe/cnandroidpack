@@ -5,6 +5,10 @@
 - Win, Mac：唯二的游戏平台，在滑行和进近阶段效果非常不错
 - Android：在现实生活中，为无聊的飞行增添一点乐趣
 
+<p align="center">
+  <img src="resources/screenshoot/show_day.png" width="60%" alt="Screenshot">
+</p>
+
 ## 疯批
 
 现在已经可以完全取代Navigraph

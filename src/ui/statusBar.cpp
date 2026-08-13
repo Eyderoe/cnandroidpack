@@ -118,7 +118,7 @@ void StatusBar::update () {
                 infoText = "(-,-) AGL:-ft";
         } else {
             if (simu.second) {
-                infoText = std::format("({:.5f}, {:5f}) Alt:{}ft", lat, lon, altRela);
+                infoText = std::format("({:.5f}, {:.5f}) Alt:{}ft", lat, lon, altRela);
             } else
                 infoText = "(-,-) Alt:-ft";
         }
