@@ -75,14 +75,7 @@ jobs:
           Write-Host "Detected MinGW version: $mingwVersion"
 
       - name: Install protoc
-        run: |
-          choco install protoc -y --no-progress
-          "C:\ProgramData\chocolatey\bin" | Add-Content -Path $env:GITHUB_PATH
-          $env:PATH = "C:\ProgramData\chocolatey\bin;$env:PATH"
-          if (-not (Get-Command protoc -ErrorAction SilentlyContinue)) {
-            throw "protoc was not installed by choco"
-          }
-          protoc --version
+        run: choco install protoc -y --no-progress
 
       - name: Cache vcpkg
         uses: actions/cache@v5
