@@ -31,6 +31,7 @@ StatusBar::StatusBar (QStatusBar *bar, QObject *parent) : QObject(parent) {
         device = std::make_unique<PositionDevice>();
         addSeparator();
         errorLabel = new QLabel();
+        bar->addWidget(errorLabel);
     }
     // 定时器
     timer.setInterval(1000);
