@@ -19,8 +19,6 @@ wlanUdp::wlanUdp () : workGuard(asio::make_work_guard(io_context))
 }
 
 wlanUdp::~wlanUdp () {
-    // 先取消挂起的异步操作, 等 io_context 排干后再关 socket
-    // Windows IOCP 下不能带着挂起的异步操作直接 close socket
     multicastSocket.cancel();
     workGuard.reset();
     if (worker.joinable())

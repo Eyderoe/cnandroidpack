@@ -24,6 +24,7 @@ if (ANDROID)
 endif ()
 find_package(Boost CONFIG)
 find_package(GeographicLib REQUIRED)
+find_package(SQLiteCpp REQUIRED)
 if (NOT TARGET GeographicLib::GeographicLib AND GeographicLib_LIBRARIES)
     add_library(GeographicLib::GeographicLib UNKNOWN IMPORTED)
     set_target_properties(GeographicLib::GeographicLib PROPERTIES
@@ -111,6 +112,10 @@ qt_add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE
         src/connector/replay.hpp
         src/utils/android.cpp
         src/utils/android.hpp
+        src/utils/sqliteHelper.cpp
+        src/utils/sqliteHelper.hpp
+        src/services/positionDevice.cpp
+        src/services/positionDevice.hpp
 )
 qt_add_protobuf(${PROJECT_NAME}
         PROTO_FILES
@@ -128,6 +133,7 @@ target_precompile_headers(${PROJECT_NAME} PRIVATE
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE
         GeographicLib::GeographicLib
+        SQLiteCpp
         Qt::Core
         Qt::Gui
         Qt::Widgets
@@ -157,6 +163,7 @@ endif ()
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Boost_SYSTEM_LIBRARY})
 target_compile_definitions(${PROJECT_NAME} PRIVATE
         $<$<CONFIG:Release>:QT_NO_DEBUG_OUTPUT>
+        #        $<$<CONFIG:Debug>:QT_NO_DEBUG_OUTPUT> # 暂时避开 windows 上适配器的析构异常
 )
 target_include_directories(${PROJECT_NAME} PRIVATE
         ${CMAKE_CURRENT_BINARY_DIR}
