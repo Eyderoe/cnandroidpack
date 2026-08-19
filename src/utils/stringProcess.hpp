@@ -7,6 +7,9 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include <QString>
+#include <QStringView>
+#include <QList>
 
 template <typename T>
 concept StrT = std::convertible_to<T, std::string_view>;
