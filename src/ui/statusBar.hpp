@@ -13,15 +13,15 @@ class StatusBar : public QObject {
         explicit StatusBar (QStatusBar *bar, QObject *parent = nullptr);
     private:
         QStatusBar *bar;
-        QLabel *simuLabel, *planeLabel, *affineLabel,*errorLabel;
+        QLabel *simuLabel, *planeLabel, *affineLabel, *errorLabel;
         QTimer timer;
         std::pair<SimulatorSource, bool> simu; // 模拟器
         std::pair<Point2D, int> plane; // 信息
         std::pair<double, AffineQuality> affine; // 仿射变换
         std::unique_ptr<PositionDevice> device{nullptr};
-        bool updateSimu{false},updatePlane{false},updateAffine{false};
+        bool updateSimu{false}, updatePlane{false}, updateAffine{false};
 
-        void update();
+        void update ();
 };
 
 #endif //CHARTNAVIGATION_STATUSBAR_HPP

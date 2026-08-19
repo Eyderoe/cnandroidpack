@@ -39,6 +39,16 @@ std::optional<Point2D> PositionDevice::getPosition () const {
 }
 
 /**
+ * @brief 获取速度
+ * @return m/s
+ */
+std::optional<double> PositionDevice::getSpeed () const {
+    if (!lastPosition.isValid() || !lastPosition.hasAttribute(QGeoPositionInfo::GroundSpeed))
+        return std::nullopt;
+    return lastPosition.attribute(QGeoPositionInfo::GroundSpeed);
+}
+
+/**
  * @brief 获取水平精度
  * @return 水平精度 (米)
  */
@@ -63,7 +73,7 @@ std::optional<double> PositionDevice::getVerticalAccuracy () const {
  * @return 当前锁定卫星数
  */
 std::optional<int> PositionDevice::getSatelliteNum () const {
-    if (!satelliteSource)
+    if (!satelliteSource || (satellitesInUse.size() == 0))
         return std::nullopt;
     return static_cast<int>(satellitesInUse.size());
 }
@@ -78,16 +88,20 @@ std::optional<int> PositionDevice::getSatelliteStrength () {
     double sum = 0;
     for (const QGeoSatelliteInfo &satellite : satellitesInUse)
         sum += satellite.signalStrength();
-    return static_cast<int>(std::lround(sum / satellitesInUse.size()));
+    return static_cast<int>(std::lround(sum / static_cast<int>(satellitesInUse.size())));
 }
 
 QString getPosDeviceInfo (PositionDevice *device) {
     if (!device)
         return {};
     QString text;
+    // 速度
+    const auto speed = device->getSpeed();
+    if (speed != std::nullopt)
+        text += QString::asprintf("速度:%.1f节", (*speed) * 1.94);
+    // 定位精度
     const auto horiz = device->getHorizontalAccuracy();
     const auto vert = device->getVerticalAccuracy();
-    // 定位精度
     if ((horiz != std::nullopt) || (vert != std::nullopt)) {
         text += "定位精度(";
         if (horiz != std::nullopt) {
@@ -103,7 +117,7 @@ QString getPosDeviceInfo (PositionDevice *device) {
     // 卫星
     const auto num = device->getSatelliteNum();
     const auto strength = device->getSatelliteStrength();
-    if ((num != std::nullopt) || (strength) != std::nullopt) {
+    if ((num != std::nullopt) || (strength != std::nullopt)) {
         text += "卫星(";
         if (num != std::nullopt) {
             text += QString::asprintf("数量:%d", *num);

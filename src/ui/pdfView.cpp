@@ -66,7 +66,7 @@ void PdfView::loadMappingData (const std::vector<std::vector<double>> &data, con
     qDebug() << std::format("RMS: {:.2f}, errors: [{}]", error, join(view, ", "));
 }
 
-void PdfView::closeSimu () const {
+void PdfView::closeSimulation () const {
     if (dataProvider)
         dataProvider->closeSimu();
 }

@@ -12,7 +12,7 @@ Database::Database (const fs::path &dbPath, const bool foreignKey) {
     db = make_unique<SQLite::Database>(dbPath, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
     if (foreignKey)
         db->exec("PRAGMA foreign_keys = ON;");
-    transaction = make_unique<SQLite::Transaction>(*db.get());
+    transaction = make_unique<SQLite::Transaction>(*db);
 }
 
 /**

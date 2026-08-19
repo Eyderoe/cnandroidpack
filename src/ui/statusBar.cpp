@@ -30,7 +30,7 @@ StatusBar::StatusBar (QStatusBar *bar, QObject *parent) : QObject(parent) {
     if constexpr (platform == MultiPlatform::androidOS) {
         device = std::make_unique<PositionDevice>();
         addSeparator();
-        errorLabel = new QLabel();
+        errorLabel = new QLabel("定位精度不可用");
         bar->addWidget(errorLabel);
     }
     // 定时器
@@ -155,7 +155,11 @@ void StatusBar::update () {
             affineLabel->setText(QString("误差:%1 质量:%2").arg(affine.first, 0, 'f', 1).arg(quality));
         }
     }
-    // 安卓特化,也不是啥高级东西 跟着他们一起更新就好
-    if constexpr (platform == MultiPlatform::androidOS)
-        errorLabel->setText(getPosDeviceInfo(device.get()));
+    // 安卓特化, 也不是啥高级东西 跟着他们一起更新就好
+    if constexpr (platform == MultiPlatform::androidOS) {
+        QString text = getPosDeviceInfo(device.get());
+        bool textAvailable = !text.isEmpty();
+        bool locatAvailable = SettingsManager::instance().get(SettingsManager::dataSource).toInt() == 2;
+        errorLabel->setText((textAvailable && locatAvailable) ? text : "定位精度不可用");
+    }
 }

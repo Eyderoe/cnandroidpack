@@ -25,6 +25,9 @@ endif ()
 find_package(Boost CONFIG)
 find_package(GeographicLib REQUIRED)
 find_package(SQLiteCpp REQUIRED)
+if (NOT TARGET SQLiteCpp AND TARGET SQLiteCpp::SQLiteCpp)
+    add_library(SQLiteCpp ALIAS SQLiteCpp::SQLiteCpp)
+endif ()
 if (NOT TARGET GeographicLib::GeographicLib AND GeographicLib_LIBRARIES)
     add_library(GeographicLib::GeographicLib UNKNOWN IMPORTED)
     set_target_properties(GeographicLib::GeographicLib PROPERTIES
@@ -59,8 +62,8 @@ qt_add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE
         src/ui/pdfView.hpp
         src/ui/stackedWidget.cpp
         src/ui/stackedWidget.hpp
-        src/ui/themeColor.cpp
-        src/ui/themeColor.hpp
+        src/ui/theme.cpp
+        src/ui/theme.hpp
         src/utils/stringProcess.cpp
         src/utils/stringProcess.hpp
         src/gui/options_widget.cpp
@@ -116,6 +119,9 @@ qt_add_executable(${PROJECT_NAME} WIN32 MACOSX_BUNDLE
         src/utils/sqliteHelper.hpp
         src/services/positionDevice.cpp
         src/services/positionDevice.hpp
+        src/gui/note_widget.cpp
+        src/gui/note_widget.hpp
+        src/gui/note_widget.ui
 )
 qt_add_protobuf(${PROJECT_NAME}
         PROTO_FILES

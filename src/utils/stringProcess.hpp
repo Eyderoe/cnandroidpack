@@ -19,6 +19,7 @@ std::string join (R &&range, std::string_view sep);
 std::string toHex (const char *data, int length);
 std::vector<std::string_view> split (std::string_view str, std::string_view delimiters = " \t\n\r\f\v",
                                      bool skipEmpty = true);
+QList<QStringView> split (QStringView str, QStringView delimiters = u" \t\n\r\f\v", bool skipEmpty = true);
 
 
 /**

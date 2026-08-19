@@ -21,6 +21,7 @@ class PositionDevice {
         ~PositionDevice ();
         // 定位
         std::optional<Point2D> getPosition () const;
+        std::optional<double> getSpeed() const;
         std::optional<double> getHorizontalAccuracy () const;
         std::optional<double> getVerticalAccuracy () const;
         // 卫星
